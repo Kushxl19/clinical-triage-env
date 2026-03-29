@@ -1,4 +1,10 @@
 ---
+title: Clinical Triage OpenEnv
+emoji: 🏥
+colorFrom: red
+colorTo: blue
+sdk: docker
+pinned: false
 tags:
 - openenv
 ---
