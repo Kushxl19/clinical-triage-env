@@ -32,7 +32,6 @@ from src.models      import (
     Action,
     EnvironmentState,
     Observation,
-    ResetRequest,
     StepRequest,
     StepResult,
 )
