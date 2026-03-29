@@ -159,9 +159,8 @@ class EnvironmentState(BaseModel):
 # API REQUEST BODIES
 # ──────────────────────────────────────────────
 
-class ResetRequest(BaseModel):
-    task_id:    Optional[str] = Field("task_1", description="Which task to start: 'task_1', 'task_2', or 'task_3'")
-    session_id: Optional[str] = Field(None, description="Provide to resume a session, or omit for a new one")
+task_id:    Optional[str] = Field("task_1", description="Which task to start: 'task_1', 'task_2', or 'task_3'")
+session_id: Optional[str] = Field(None, description="Provide to resume a session, or omit for a new one")
 
 
 class StepRequest(BaseModel):
