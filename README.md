@@ -1,3 +1,7 @@
+---
+tags:
+- openenv
+---
 # 🏥 Clinical Triage OpenEnv
 
 [![OpenEnv](https://img.shields.io/badge/OpenEnv-Compatible-green)](https://github.com/openenv)
