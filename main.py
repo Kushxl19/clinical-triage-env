@@ -23,6 +23,8 @@ import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
+from fastapi import Request
+
 
 from src.data        import TASK_REGISTRY
 from src.environment import ClinicalTriageEnv
@@ -163,32 +165,25 @@ def list_tasks() -> Dict[str, Any]:
         })
     return {"tasks": tasks, "total": len(tasks)}
 
+@app.post("/reset", tags=["OpenEnv"])
+async def reset(req: Request):
+    try:
+        body = await req.json()
+    except:
+        body = {}
 
-@app.post("/reset", response_model=Dict[str, Any], tags=["OpenEnv"])
-def reset(request: ResetRequest | None = None) -> Dict[str, Any]:
-    session_id = None
-    task_id = "task_1"  # default task
-
-    if request:
-        session_id = request.session_id
-        task_id = request.task_id
-
-    session_id = session_id or str(uuid.uuid4())
+    task_id = body.get("task_id", "task_1")
+    session_id = body.get("session_id", str(uuid.uuid4()))
 
     env = ClinicalTriageEnv()
-    try:
-        observation = env.reset(task_id=task_id, session_id=session_id)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    observation = env.reset(task_id=task_id, session_id=session_id)
 
     SESSIONS[session_id] = env
 
     return {
         "session_id": session_id,
-        "observation": observation.model_dump(),
-        "message": f"Episode started for {task_id}.",
+        "observation": observation.model_dump()
     }
-
 
 @app.post("/step", response_model=Dict[str, Any], tags=["OpenEnv"])
 def step(request: StepRequest) -> Dict[str, Any]:
