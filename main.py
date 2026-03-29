@@ -165,27 +165,28 @@ def list_tasks() -> Dict[str, Any]:
 
 
 @app.post("/reset", response_model=Dict[str, Any], tags=["OpenEnv"])
-def reset(request: ResetRequest) -> Dict[str, Any]:
-    """
-    **OpenEnv reset()** — Start a fresh episode for the given task.
+def reset(request: ResetRequest | None = None) -> Dict[str, Any]:
+    session_id = None
+    task_id = "task_1"  # default task
 
-    Returns the first Observation (first patient's intake form).
-    Keep the `session_id` — you'll need it for every subsequent /step call.
-    """
-    session_id = request.session_id or str(uuid.uuid4())
+    if request:
+        session_id = request.session_id
+        task_id = request.task_id
+
+    session_id = session_id or str(uuid.uuid4())
 
     env = ClinicalTriageEnv()
     try:
-        observation = env.reset(task_id=request.task_id, session_id=session_id)
+        observation = env.reset(task_id=task_id, session_id=session_id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
     SESSIONS[session_id] = env
 
     return {
-        "session_id":  session_id,
+        "session_id": session_id,
         "observation": observation.model_dump(),
-        "message":     f"Episode started for {request.task_id}. Submit actions via POST /step.",
+        "message": f"Episode started for {task_id}.",
     }
 
 
