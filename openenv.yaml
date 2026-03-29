@@ -1,0 +1,182 @@
+# openenv.yaml
+# ─────────────
+# Metadata for the Clinical Triage OpenEnv environment.
+# Run: openenv validate  to check compliance.
+
+name: clinical-triage-env
+version: "1.0.0"
+description: >
+  An OpenEnv-compatible environment where AI agents practice real-world
+  clinical patient triage. The agent reads patient intake forms and must
+  assess urgency, route to the correct medical specialist, and detect
+  dangerous medication combinations and contraindications.
+
+author: clinical-triage-openenv
+homepage: https://huggingface.co/spaces/clinical-triage-openenv/clinical-triage-env
+license: MIT
+
+tags:
+  - openenv
+  - healthcare
+  - clinical-triage
+  - medication-safety
+  - nlp
+  - real-world
+
+# ── Tasks ─────────────────────────────────────────────────────────────────────
+
+tasks:
+  - id: task_1
+    name: "Urgency Classification"
+    description: >
+      Classify patient urgency level from a clinical intake form.
+      Choose from: low, medium, high, critical.
+    difficulty: easy
+    max_steps: 3
+    reward_threshold: 0.70
+    grader_weights:
+      urgency: 1.0
+      specialist: 0.0
+      medications: 0.0
+      contraindications: 0.0
+
+  - id: task_2
+    name: "Specialist Routing"
+    description: >
+      Determine both the urgency level AND the correct medical specialist
+      to refer the patient to (cardiologist, neurologist, psychiatrist, etc.)
+    difficulty: medium
+    max_steps: 3
+    reward_threshold: 0.55
+    grader_weights:
+      urgency: 0.40
+      specialist: 0.60
+      medications: 0.0
+      contraindications: 0.0
+
+  - id: task_3
+    name: "Full Triage with Medication Safety"
+    description: >
+      Complete triage requiring urgency assessment, specialist routing,
+      identification of dangerous proposed medications, and description of
+      contraindications or drug interactions. Requires pharmacological knowledge.
+    difficulty: hard
+    max_steps: 3
+    reward_threshold: 0.40
+    grader_weights:
+      urgency: 0.25
+      specialist: 0.25
+      medications: 0.25
+      contraindications: 0.25
+
+# ── Observation Space ─────────────────────────────────────────────────────────
+
+observation_space:
+  type: object
+  description: >
+    A structured patient intake form containing demographics, chief complaint,
+    symptoms list, vital signs, current medications, proposed medications,
+    allergies, and medical history. Wrapped in task metadata (task name,
+    description, step number, max steps, previous reward).
+  fields:
+    task_id:          {type: string}
+    task_name:        {type: string}
+    task_description: {type: string}
+    step_number:      {type: integer}
+    max_steps:        {type: integer}
+    previous_reward:  {type: number, nullable: true}
+    patient_form:
+      type: object
+      fields:
+        patient_id:             {type: string}
+        age:                    {type: integer}
+        gender:                 {type: string}
+        chief_complaint:        {type: string}
+        symptoms:               {type: array, items: string}
+        symptom_duration_hours: {type: integer, nullable: true}
+        vitals:
+          type: object
+          nullable: true
+          fields:
+            blood_pressure_systolic:  {type: integer}
+            blood_pressure_diastolic: {type: integer}
+            heart_rate:               {type: integer}
+            temperature_celsius:      {type: number}
+            oxygen_saturation:        {type: number}
+            respiratory_rate:         {type: integer}
+            pain_scale:               {type: integer, minimum: 0, maximum: 10}
+        current_medications:  {type: array, items: string, nullable: true}
+        proposed_medications: {type: array, items: string, nullable: true}
+        allergies:            {type: array, items: string, nullable: true}
+        medical_history:      {type: array, items: string, nullable: true}
+
+# ── Action Space ──────────────────────────────────────────────────────────────
+
+action_space:
+  type: object
+  description: >
+    The agent's triage decision for the current patient.
+  fields:
+    action_type:
+      type: string
+      const: "triage_decision"
+    triage:
+      type: object
+      fields:
+        urgency_level:
+          type: string
+          enum: [low, medium, high, critical]
+        specialist_referral:
+          type: string
+          enum:
+            - general_practitioner
+            - cardiologist
+            - neurologist
+            - orthopedic
+            - psychiatrist
+            - pulmonologist
+            - gastroenterologist
+            - endocrinologist
+            - emergency_medicine
+        medication_flags:
+          type: array
+          items: string
+          description: "Proposed medications flagged as dangerous for this patient"
+        contraindications:
+          type: array
+          items: string
+          description: "Free-text descriptions of each contraindication found"
+        clinical_notes:
+          type: string
+          nullable: true
+          description: "Optional one-sentence clinical reasoning"
+
+# ── Reward ────────────────────────────────────────────────────────────────────
+
+reward:
+  range: [0.0, 1.0]
+  description: >
+    Weighted sum of component scores. Provided at every step (not just episode end)
+    for partial-progress signal. Components: urgency accuracy (ordinal distance),
+    specialist routing (exact or same-group match), medication flag F1 score,
+    contraindication concept-group matching.
+  partial_progress: true
+  episode_bonus: 0.05  # awarded if average score >= 0.90
+
+# ── API ───────────────────────────────────────────────────────────────────────
+
+api:
+  reset:  "POST /reset"
+  step:   "POST /step"
+  state:  "GET  /state"
+  tasks:  "GET  /tasks"
+  health: "GET  /health"
+
+# ── Runtime ───────────────────────────────────────────────────────────────────
+
+runtime:
+  port: 7860
+  inference_time_limit_minutes: 20
+  min_resources:
+    vcpu: 2
+    memory_gb: 4
