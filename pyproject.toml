@@ -1,0 +1,14 @@
+[project]
+name = "clinical-triage-env"
+version = "1.0.0"
+description = "Clinical Triage OpenEnv - AI agent environment for patient triage"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.104.0",
+    "uvicorn>=0.24.0",
+    "pydantic>=2.0.0",
+    "openai>=1.0.0",
+    "pyyaml>=6.0",
+    "httpx>=0.25.0",
+    "python-multipart>=0.0.6",
+]
