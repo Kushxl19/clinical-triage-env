@@ -166,3 +166,4 @@ session_id: Optional[str] = Field(None, description="Provide to resume a session
 class StepRequest(BaseModel):
     session_id: str    = Field(..., description="Session ID returned by /reset")
     action:     Action = Field(..., description="The agent's triage decision")
+    
