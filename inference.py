@@ -159,7 +159,7 @@ def dict_to_action(parsed: Dict[str, Any]) -> Action:
     try:
         urgency = UrgencyLevel(urgency_str)
     except ValueError:
-        print(f"  [warn] Unknown urgency '{urgency_str}', defaulting to 'medium'")
+        print(f"  [warn] Unknown urgency '{urgency_str}', defaulting to 'medium'", flush=True)
         urgency = UrgencyLevel.MEDIUM
 
     # Validate and coerce specialist
@@ -167,7 +167,7 @@ def dict_to_action(parsed: Dict[str, Any]) -> Action:
     try:
         specialist = SpecialistType(specialist_str)
     except ValueError:
-        print(f"  [warn] Unknown specialist '{specialist_str}', defaulting to 'general_practitioner'")
+        print(f"  [warn] Unknown specialist '{specialist_str}', defaulting to 'general_practitioner'", flush=True)
         specialist = SpecialistType.GENERAL
 
     return Action(
@@ -189,13 +189,16 @@ def run_episode(task_id: str) -> Tuple[float, List[Dict[str, Any]]]:
     Returns:
         (final_average_score, list_of_step_results)
     """
-    print(f"\n{'═'*60}")
-    print(f"  TASK: {task_id.upper()}")
-    print(f"{'═'*60}")
+    print(f"\n{'═'*60}", flush=True)
+    print(f"  TASK: {task_id.upper()}", flush=True)
+    print(f"{'═'*60}", flush=True)
 
     env = ClinicalTriageEnv()
     observation = env.reset(task_id=task_id)
     obs_dict    = observation.model_dump()
+
+    # ── [START] structured block ───────────────────────────────────────────────
+    print(f"[START] task={task_id}", flush=True)
 
     history: List[str] = []
     step_results: List[Dict[str, Any]] = []
@@ -203,8 +206,8 @@ def run_episode(task_id: str) -> Tuple[float, List[Dict[str, Any]]]:
 
     for step_num in range(1, MAX_STEPS + 1):
         print(f"\n  ── Step {step_num}/{obs_dict['max_steps']} "
-              f"| Patient: {obs_dict['patient_form']['patient_id']} ──")
-        print(f"  Chief complaint: {obs_dict['patient_form']['chief_complaint']}")
+              f"| Patient: {obs_dict['patient_form']['patient_id']} ──", flush=True)
+        print(f"  Chief complaint: {obs_dict['patient_form']['chief_complaint']}", flush=True)
 
         # ── Build messages ────────────────────────────────────────────────────
         user_prompt = build_user_prompt(obs_dict, step_num, history)
@@ -224,8 +227,8 @@ def run_episode(task_id: str) -> Tuple[float, List[Dict[str, Any]]]:
             )
             response_text = completion.choices[0].message.content or ""
         except Exception as exc:
-            print(f"  [ERROR] LLM call failed: {exc}")
-            print("  Using fallback action (medium urgency, general_practitioner).")
+            print(f"  [ERROR] LLM call failed: {exc}", flush=True)
+            print("  Using fallback action (medium urgency, general_practitioner).", flush=True)
             response_text = json.dumps({
                 "urgency_level":     "medium",
                 "specialist_referral": "general_practitioner",
@@ -239,8 +242,8 @@ def run_episode(task_id: str) -> Tuple[float, List[Dict[str, Any]]]:
             parsed = parse_llm_response(response_text)
             action = dict_to_action(parsed)
         except (ValueError, KeyError) as e:
-            print(f"  [ERROR] Could not parse response: {e}")
-            print("  Using fallback action.")
+            print(f"  [ERROR] Could not parse response: {e}", flush=True)
+            print("  Using fallback action.", flush=True)
             action = dict_to_action({
                 "urgency_level":     "medium",
                 "specialist_referral": "general_practitioner",
@@ -251,7 +254,7 @@ def run_episode(task_id: str) -> Tuple[float, List[Dict[str, Any]]]:
 
         print(f"  Agent → urgency={action.triage.urgency_level.value}, "
               f"specialist={action.triage.specialist_referral.value}, "
-              f"flags={action.triage.medication_flags}")
+              f"flags={action.triage.medication_flags}", flush=True)
 
         # ── Step environment ──────────────────────────────────────────────────
         result = env.step(action)
@@ -262,7 +265,10 @@ def run_episode(task_id: str) -> Tuple[float, List[Dict[str, Any]]]:
         done        = result.done
         info        = result.info
 
-        print(f"  Reward: {reward:.4f} | Feedback: {info.get('feedback','')}")
+        print(f"  Reward: {reward:.4f} | Feedback: {info.get('feedback','')}", flush=True)
+
+        # ── [STEP] structured block ───────────────────────────────────────────
+        print(f"[STEP] step={step_num} reward={reward:.4f}", flush=True)
 
         # Track history for multi-step context
         history.append(
@@ -284,33 +290,41 @@ def run_episode(task_id: str) -> Tuple[float, List[Dict[str, Any]]]:
 
         if done:
             final_score = info.get("final_score", total_reward / step_num)
-            print(f"\n  ✅ Episode complete.")
-            print(f"  Final score: {final_score:.4f}")
+            print(f"\n  ✅ Episode complete.", flush=True)
+            print(f"  Final score: {final_score:.4f}", flush=True)
             if info.get("bonus", 0) > 0:
-                print(f"  🌟 Excellent performance bonus: +{info['bonus']}")
+                print(f"  🌟 Excellent performance bonus: +{info['bonus']}", flush=True)
+
+            # ── [END] structured block ────────────────────────────────────────
+            print(f"[END] task={task_id} score={final_score:.4f} steps={step_num}", flush=True)
+
             return final_score, step_results
 
         # Small delay to respect rate limits
         time.sleep(0.3)
 
-    # Should not reach here for 3-step episodes, but just in case
+    # Fallback if MAX_STEPS reached without done
     avg = total_reward / step_num if step_num > 0 else 0.0
+
+    # ── [END] structured block (fallback) ─────────────────────────────────────
+    print(f"[END] task={task_id} score={avg:.4f} steps={step_num}", flush=True)
+
     return round(avg, 4), step_results
 
 
 def main() -> None:
     """Run the full baseline evaluation across all 3 tasks."""
-    print("\n" + "█" * 62)
-    print("  CLINICAL TRIAGE OPENENV — BASELINE INFERENCE")
-    print(f"  Model:   {MODEL_NAME}")
-    print(f"  API:     {API_BASE_URL}")
-    print("█" * 62)
+    print("\n" + "█" * 62, flush=True)
+    print("  CLINICAL TRIAGE OPENENV — BASELINE INFERENCE", flush=True)
+    print(f"  Model:   {MODEL_NAME}", flush=True)
+    print(f"  API:     {API_BASE_URL}", flush=True)
+    print("█" * 62, flush=True)
 
     # Verify API key is set
     if not HF_TOKEN:
-        print("\n[ERROR] No API key found.")
-        print("  Set HF_TOKEN (or OPENAI_API_KEY) before running:\n")
-        print("  export HF_TOKEN='your-key-here'")
+        print("\n[ERROR] No API key found.", flush=True)
+        print("  Set HF_TOKEN (or OPENAI_API_KEY) before running:\n", flush=True)
+        print("  export HF_TOKEN='your-key-here'", flush=True)
         sys.exit(1)
 
     tasks = ["task_1", "task_2", "task_3"]
@@ -325,41 +339,45 @@ def main() -> None:
             all_scores[task_id]  = score
             all_results[task_id] = results
         except Exception as e:
-            print(f"\n[ERROR] Task {task_id} failed: {e}")
+            print(f"\n[ERROR] Task {task_id} failed: {e}", flush=True)
             all_scores[task_id]  = 0.0
             all_results[task_id] = []
 
     elapsed = time.time() - start_time
 
     # ── Final report ──────────────────────────────────────────────────────────
-    print("\n" + "═" * 62)
-    print("  FINAL SCORES")
-    print("═" * 62)
-    print(f"  {'Task':<35} {'Score':>8}  {'Difficulty'}")
-    print("  " + "-" * 58)
+    print("\n" + "═" * 62, flush=True)
+    print("  FINAL SCORES", flush=True)
+    print("═" * 62, flush=True)
+    print(f"  {'Task':<35} {'Score':>8}  {'Difficulty'}", flush=True)
+    print("  " + "-" * 58, flush=True)
 
     difficulties = {"task_1": "Easy", "task_2": "Medium", "task_3": "Hard"}
     for task_id in tasks:
         score = all_scores.get(task_id, 0.0)
         bar   = "█" * int(score * 20) + "░" * (20 - int(score * 20))
         diff  = difficulties.get(task_id, "")
-        print(f"  {task_id} ({diff}){'':>15} {score:.4f}  {bar}")
+        print(f"  {task_id} ({diff}){'':>15} {score:.4f}  {bar}", flush=True)
 
     overall = sum(all_scores.values()) / len(all_scores) if all_scores else 0.0
-    print("  " + "-" * 58)
-    print(f"  {'Overall Average':<35} {overall:.4f}")
-    print(f"\n  Time elapsed: {elapsed:.1f}s")
-    print("═" * 62 + "\n")
+    print("  " + "-" * 58, flush=True)
+    print(f"  {'Overall Average':<35} {overall:.4f}", flush=True)
+    print(f"\n  Time elapsed: {elapsed:.1f}s", flush=True)
+    print("═" * 62 + "\n", flush=True)
 
     # ── Machine-readable output ───────────────────────────────────────────────
     output = {
         "model":    MODEL_NAME,
         "scores":   all_scores,
         "overall":  round(overall, 4),
-        "elapsed_seconds": round(elapsed, 1),
+        "elapsed_seconds": round(, elapsed1),
         "results":  all_results,
     }
-    print("JSON_RESULTS:", json.dumps(output))
+    print("JSON_RESULTS:", json.dumps(output), flush=True)
+
+
+if __name__ == "__main__":
+    main()
 
 
 if __name__ == "__main__":
