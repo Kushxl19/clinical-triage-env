@@ -7,11 +7,15 @@ import gradio as gr
 def run_fastapi():
     uvicorn.run(fastapi_app, host="0.0.0.0", port=7860)
 
-thread = threading.Thread(target=run_fastapi, daemon=True)
-thread.start()
+def main():
+    thread = threading.Thread(target=run_fastapi, daemon=True)
+    thread.start()
 
-# Minimal Gradio front-end so HF is satisfied
-with gr.Blocks() as demo:
-    gr.Markdown("# Clinical Triage OpenEnv API is running on port 7860")
+    # Minimal Gradio front-end so HF is satisfied
+    with gr.Blocks() as demo:
+        gr.Markdown("# Clinical Triage OpenEnv API is running on port 7860")
 
-demo.launch(server_port=7861)
+    demo.launch(server_port=7861)
+
+if __name__ == "__main__":
+    main()
