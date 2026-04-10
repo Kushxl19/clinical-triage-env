@@ -370,14 +370,10 @@ def main() -> None:
         "model":    MODEL_NAME,
         "scores":   all_scores,
         "overall":  round(overall, 4),
-        "elapsed_seconds": round(, elapsed1),
+        "elapsed_seconds": round(elapsed, 1),
         "results":  all_results,
     }
     print("JSON_RESULTS:", json.dumps(output), flush=True)
-
-
-if __name__ == "__main__":
-    main()
 
 
 if __name__ == "__main__":
